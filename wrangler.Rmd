@@ -1,0 +1,78 @@
+---
+title: "wrangler"
+author: "James Hamilton"
+date: "March 2, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Wrangling Exercise 1  
+```{r echo=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+```
+
+## 0 - Load the data
+Simply use read.csv
+`r mydata <- read.csv("refine_original.csv", header = TRUE)`
+
+## 1 - Clean up brand names
+Using a combination of regex and tolower
+```{r}
+mydata$company <- tolower(mydata$company) %>%
+  gsub("0", "o", .) %>%
+  sub("k z", "kz", .) %>%
+  sub("lv", "lev", .) %>%
+  sub("^([fp].+)", "philips", .)
+```
+
+## 2 - Separate product code & number
+Using tidyr separate function
+```{r}
+newcols = c("product_code","product_number")
+mydata <- mydata %>%
+  separate(., "Product.code...number", 
+           newcols, sep = "-", remove = FALSE)
+```
+
+## 3 - Add product category
+Using dplyr left_join and a mapping dataframe
+```{r warning=FALSE}
+codemapvector <- c("p","Smartphone","v","TV","x","Laptop","q","Tablet")
+codemap <- data.frame(matrix(codemapvector, nrow=4, byrow=TRUE))
+names(codemap) <- c("product_code", "product_category")
+mydata <- left_join(mydata, codemap, by = "product_code")
+```
+
+## 4 - Add full addr. to allow geocoding
+With dplyr mutate.
+```{r}
+mydata <- mydata %>% 
+  mutate(., full_address = paste(address, city, country, sep = ", "))
+```
+
+## 5 - Create dummy vars: company & product category
+Using mutate again.
+```{r}
+mydata <- mydata %>%
+  mutate(., company_philips = mydata$company == "philips") %>%
+  mutate(., company_akzo = mydata$company == "akzo") %>%
+  mutate(., company_van_houten = mydata$company == "van houten") %>%
+  mutate(., company_unilever = mydata$company == "unilever")
+
+mydata <- mydata %>%
+  mutate(., product_smartphone = mydata$product_code == "p") %>%
+  mutate(., product_tv = mydata$product_code == "v") %>%
+  mutate(., product_laptop = mydata$product_code == "x") %>%
+  mutate(., product_tablet = mydata$product_code == "q")
+```
+
+## 6 - Write tidied data to refine_clean.csv
+Using write.csv
+```{r}
+head(mydata)
+write.csv(mydata, "refine_clean.csv", row.names = FALSE)
+```
